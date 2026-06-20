@@ -1,7 +1,7 @@
 --Database Creation
 if DB_ID('Kimball') is not null
 begin
-   drop database kimball
+   drop database kimball;
 end
 go 
 
