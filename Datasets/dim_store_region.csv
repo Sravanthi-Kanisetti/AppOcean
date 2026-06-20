@@ -1,0 +1,6 @@
+region_key,region_name,store_currency,tax_rate_pct
+1,Asia Pacific,USD,0
+2,North America,USD,8.5
+3,Europe,EUR,20
+4,Latin America,BRL,12
+5,Middle East & Africa,AED,5
