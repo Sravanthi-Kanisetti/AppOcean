@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Store Analytics — Kimball DWH Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --accent4: #f59e0b;
+    --accent5: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --fact: #7c3aed;
+    --dim: #0ea5e9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(0,212,255,0.06) 0%, transparent 60%);
+  }
+
+  .page-title {
+    text-align: center;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .page-sub {
+    text-align: center;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    margin-bottom: 50px;
+    letter-spacing: 2px;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .flow-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 24px;
+    text-align: center;
+    position: relative;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .flow-box:hover { transform: translateY(-2px); }
+
+  .flow-box.source { border-color: #374151; min-width: 140px; }
+  .flow-box.staging { border-color: #f59e0b; min-width: 200px; }
+  .flow-box.dw      { border-color: #7c3aed; min-width: 200px; }
+  .flow-box.mart    { border-color: #10b981; min-width: 160px; }
+  .flow-box.query   { border-color: #00d4ff; min-width: 200px; }
+
+  .flow-box .label {
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    opacity: 0.6;
+  }
+  .flow-box .name {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .flow-box .detail {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .staging .name { color: #f59e0b; }
+  .dw .name      { color: #a78bfa; }
+  .mart .name    { color: #34d399; }
+  .query .name   { color: #00d4ff; }
+  .source .name  { color: #94a3b8; }
+
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 1.4rem;
+    padding: 4px 0;
+  }
+  .arrow-label {
+    font-size: 0.65rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .csv-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .csv-box {
+    background: var(--surface2);
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-align: center;
+  }
+  .csv-box span { color: #e2e8f0; font-weight: 600; display: block; }
+
+  .mart-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 680px;
+  }
+  .mart-card {
+    background: var(--surface);
+    border: 1px solid #064e3b;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+  }
+  .mart-card .mt { font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .mart-card .mn { font-size: 0.9rem; font-weight: 700; color: #34d399; }
+  .mart-card .ms { font-size: 0.68rem; color: #6b7280; margin-top: 3px; }
+
+  /* ── STAR SCHEMA ── */
+  .section-title {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .section-title span { color: var(--accent2); }
+
+  .star-container {
+    max-width: 900px;
+    margin: 0 auto 60px;
+    position: relative;
+  }
+
+  .star-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid #1e40af;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .dim-card .dc-label {
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #60a5fa;
+    margin-bottom: 6px;
+  }
+  .dim-card .dc-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #93c5fd;
+    margin-bottom: 10px;
+  }
+  .dim-card .dc-cols {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .dc-col {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .dc-col.pk {
+    color: #fbbf24;
+    background: rgba(251,191,36,0.08);
+  }
+  .dc-col.fk {
+    color: #f87171;
+    background: rgba(248,113,113,0.08);
+  }
+  .dc-col.measure {
+    color: #34d399;
+    background: rgba(52,211,153,0.08);
+  }
+
+  .fact-card {
+    background: var(--surface);
+    border: 2px solid #7c3aed;
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    grid-column: 2;
+    grid-row: 2;
+    box-shadow: 0 0 30px rgba(124,58,237,0.2);
+  }
+  .fact-card::before {
+    content: '⭐ FACT TABLE';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #7c3aed;
+    color: white;
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+  }
+  .fact-card .dc-name { color: #c4b5fd; }
+  .fact-card .dc-label { color: #a78bfa; }
+
+  .connector-h {
+    height: 2px;
+    background: linear-gradient(90deg, #1e40af, #7c3aed, #1e40af);
+    opacity: 0.5;
+    align-self: center;
+  }
+  .connector-v {
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(180deg, #1e40af, #7c3aed);
+    opacity: 0.5;
+    margin: 0 auto;
+  }
+
+  /* ── PROCESS STEPS ── */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .step-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .step-card.s1::before { background: #374151; }
+  .step-card.s2::before { background: #f59e0b; }
+  .step-card.s3::before { background: #3b82f6; }
+  .step-card.s4::before { background: #8b5cf6; }
+  .step-card.s5::before { background: #7c3aed; }
+  .step-card.s6::before { background: #10b981; }
+  .step-card.s7::before { background: #00d4ff; }
+  .step-card.s8::before { background: #ec4899; }
+  .step-card.s9::before { background: #f97316; }
+  .step-card.s10::before { background: #84cc16; }
+
+  .step-num {
+    font-size: 2rem;
+    font-weight: 800;
+    opacity: 0.15;
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .step-icon { font-size: 1.5rem; margin-bottom: 8px; }
+  .step-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+  .step-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+  .step-tag {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-top: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .tag-sp { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .tag-manual { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .tag-auto { background: rgba(16,185,129,0.15); color: #34d399; }
+
+  /* ── DATA QUALITY ── */
+  .quality-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+  }
+  .quality-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .quality-issue { font-size: 0.72rem; color: #f87171; font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+  .quality-col { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+  .quality-arrow { color: var(--muted); font-size: 0.8rem; margin: 4px 0; }
+  .quality-fix { font-size: 0.72rem; color: #34d399; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── SQL TECHNIQUES ── */
+  .sql-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    max-width: 1100px;
+    margin: 0 auto 60px;
+  }
+  .sql-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .sql-fn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 6px;
+  }
+  .sql-use {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── STATS ── */
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    max-width: 1100px;
+    margin: 0 auto 20px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 28px;
+    text-align: center;
+    min-width: 140px;
+  }
+  .stat-num { font-size: 2rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .divider {
+    max-width: 1100px;
+    margin: 0 auto 40px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">App Store Analytics</h1>
+<p class="page-sub">KIMBALL DIMENSIONAL DATA WAREHOUSE — SQL SERVER</p>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num" style="color:#00d4ff">120.5K</div>
+    <div class="stat-label">Fact Rows</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#a78bfa">5</div>
+    <div class="stat-label">Dim Tables</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#34d399">6</div>
+    <div class="stat-label">Data Marts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#f59e0b">30+</div>
+    <div class="stat-label">Queries</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#f87171">2</div>
+    <div class="stat-label">Stored Procs</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" style="color:#ec4899">5</div>
+    <div class="stat-label">Indexes</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ARCHITECTURE FLOW -->
+<div class="section-title">Architecture <span>Flow</span></div>
+
+<div class="flow">
+
+  <!-- CSV Sources -->
+  <div class="flow-row">
+    <div class="csv-grid">
+      <div class="csv-box"><span>dim_app.csv</span>30 rows</div>
+      <div class="csv-box"><span>dim_date.csv</span>1,461 rows</div>
+      <div class="csv-box"><span>dim_device.csv</span>10 rows</div>
+      <div class="csv-box"><span>dim_user.csv</span>10,000 rows</div>
+      <div class="csv-box"><span>dim_store_region.csv</span>5 rows</div>
+      <div class="csv-box"><span>fact_app_events.csv</span>120,500 rows</div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div>↓</div>
+    <div class="arrow-label">BULK INSERT via Staging.load_data</div>
+  </div>
+
+  <!-- Staging -->
+  <div class="flow-row">
+    <div class="flow-box staging">
+      <div class="label">Layer 1</div>
+      <div class="name">Staging Schema</div>
+      <div class="detail">Raw data · NVARCHAR · Safe loading</div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div>↓</div>
+    <div class="arrow-label">Data Profiling → Cleaning → Validation</div>
+  </div>
+
+  <!-- DW -->
+  <div class="flow-row">
+    <div class="flow-box dw">
+      <div class="label">Layer 2</div>
+      <div class="name">DW Schema</div>
+      <div class="detail">Star Schema · PK/FK · Typed columns</div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div>↓</div>
+    <div class="arrow-label">CREATE VIEW</div>
+  </div>
+
+  <!-- Marts -->
+  <div class="flow-row">
+    <div class="mart-grid">
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Marketing_Mart</div>
+        <div class="ms">Users · Events · Demographics</div>
+      </div>
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Finance_Mart</div>
+        <div class="ms">Revenue · Discount · Tax · Region</div>
+      </div>
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Product_Mart</div>
+        <div class="ms">Ratings · Sessions · Versions</div>
+      </div>
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Regional_Mart</div>
+        <div class="ms">Regions · Currency · Tax</div>
+      </div>
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Device_Mart</div>
+        <div class="ms">Devices · OS · Manufacturers</div>
+      </div>
+      <div class="mart-card">
+        <div class="mt">Dept</div>
+        <div class="mn">Executive_Mart</div>
+        <div class="ms">All KPIs · Summary</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">
+    <div>↓</div>
+    <div class="arrow-label">30+ Analytical Queries</div>
+  </div>
+
+  <!-- Business Insights -->
+  <div class="flow-row">
+    <div class="flow-box query">
+      <div class="label">Output</div>
+      <div class="name">Business Insights</div>
+      <div class="detail">LAG · RANK · CTE · NULLIF · CASE</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- STAR SCHEMA -->
+<div class="section-title">Star <span>Schema</span></div>
+
+<div class="star-container">
+  <div class="star-grid">
+
+    <!-- dim_date top-left -->
+    <div class="dim-card">
+      <div class="dc-label">Dimension</div>
+      <div class="dc-name">dim_date</div>
+      <div class="dc-cols">
+        <div class="dc-col pk">🔑 date_key (PK)</div>
+        <div class="dc-col">full_date (DATE)</div>
+        <div class="dc-col">year · quarter · month</div>
+        <div class="dc-col">day_of_week · is_weekend (BIT)</div>
+      </div>
+    </div>
+
+    <!-- top connector area -->
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:0px">
+      <div style="color:#6b7280;font-size:0.65rem;font-family:'JetBrains Mono';text-align:center;margin-bottom:8px">FK →</div>
+      <div class="connector-v"></div>
+    </div>
+
+    <!-- dim_app top-right -->
+    <div class="dim-card">
+      <div class="dc-label">Dimension</div>
+      <div class="dc-name">dim_app</div>
+      <div class="dc-cols">
+        <div class="dc-col pk">🔑 app_key (PK)</div>
+        <div class="dc-col">app_name · category</div>
+        <div class="dc-col">platform · price_usd</div>
+        <div class="dc-col">content_rating · size_mb</div>
+      </div>
+    </div>
+
+    <!-- dim_user middle-left -->
+    <div class="dim-card">
+      <div class="dc-label">Dimension</div>
+      <div class="dc-name">dim_user</div>
+      <div class="dc-cols">
+        <div class="dc-col pk">🔑 user_key (PK)</div>
+        <div class="dc-col">gender · age_group</div>
+        <div class="dc-col">country · city</div>
+        <div class="dc-col">is_premium (BIT) · email_domain</div>
+      </div>
+    </div>
+
+    <!-- FACT TABLE center -->
+    <div class="fact-card">
+      <div class="dc-label">Center</div>
+      <div class="dc-name">fact_app_events</div>
+      <div class="dc-cols">
+        <div class="dc-col pk">🔑 fact_key (PK)</div>
+        <div class="dc-col fk">🔗 date_key (FK)</div>
+        <div class="dc-col fk">🔗 app_key (FK)</div>
+        <div class="dc-col fk">🔗 user_key (FK)</div>
+        <div class="dc-col fk">🔗 device_key (FK)</div>
+        <div class="dc-col fk">🔗 region_key (FK)</div>
+        <div class="dc-col measure">💰 revenue_usd</div>
+        <div class="dc-col measure">⏱ session_minutes</div>
+        <div class="dc-col measure">⭐ rating</div>
+        <div class="dc-col measure">🏷 discount_pct</div>
+        <div class="dc-col">event_type · install_source · app_version</div>
+      </div>
+    </div>
+
+    <!-- dim_store_region middle-right -->
+    <div class="dim-card">
+      <div class="dc-label">Dimension</div>
+      <div class="dc-name">dim_store_region</div>
+      <div class="dc-cols">
+        <div class="dc-col pk">🔑 region_key (PK)</div>
+        <div class="dc-col">region_name</div>
+        <div class="dc-col">store_currency</div>
+        <div class="dc-col">tax_rate_pct</div>
+      </div>
+    </div>
+
+    <!-- bottom-left empty -->
+    <div></div>
+
+    <!-- dim_device bottom-center -->
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="connector-v"></div>
+      <div style="color:#6b7280;font-size:0.65rem;font-family:'JetBrains Mono';margin-bottom:8px">↑ FK</div>
+      <div class="dim-card" style="width:100%">
+        <div class="dc-label">Dimension</div>
+        <div class="dc-name">dim_device</div>
+        <div class="dc-cols">
+          <div class="dc-col pk">🔑 device_key (PK)</div>
+          <div class="dc-col">device_type · os_version</div>
+          <div class="dc-col">manufacturer</div>
+          <div class="dc-col">screen_size_inch</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- bottom-right empty -->
+    <div></div>
+
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PROCESS STEPS -->
+<div class="section-title">Project <span>Steps</span></div>
+
+<div class="steps-grid">
+  <div class="step-card s1">
+    <div class="step-num">01</div>
+    <div class="step-icon">🗄️</div>
+    <div class="step-title">Database & Schema Creation</div>
+    <div class="step-desc">Create Kimball database. Create Staging schema for raw data and DW schema for the clean star schema. Done manually before any stored procedures.</div>
+    <span class="step-tag tag-manual">Manual</span>
+  </div>
+
+  <div class="step-card s2">
+    <div class="step-num">02</div>
+    <div class="step-icon">📥</div>
+    <div class="step-title">Staging Tables + Raw Load (SP1)</div>
+    <div class="step-desc">Create 6 staging tables with NVARCHAR types to safely accept any format. BULK INSERT all CSV files via Staging.load_data with per-table timing + TRY-CATCH error handling.</div>
+    <span class="step-tag tag-sp">Stored Procedure</span>
+  </div>
+
+  <div class="step-card s3">
+    <div class="step-num">03</div>
+    <div class="step-icon">🔍</div>
+    <div class="step-title">Data Profiling</div>
+    <div class="step-desc">Analyze every column using DISTINCT + COLLATE Latin1_General_CS_AS, COUNT(*)-COUNT(col) for NULLs, MAX/MIN/AVG for numerics. Find problems before touching anything.</div>
+    <span class="step-tag tag-manual">Manual</span>
+  </div>
+
+  <div class="step-card s4">
+    <div class="step-num">04</div>
+    <div class="step-icon">🧹</div>
+    <div class="step-title">Data Cleaning</div>
+    <div class="step-desc">Write SELECT statements to test cleaning logic first. Verify output with your own eyes. Only convert to INSERT after the result is confirmed correct.</div>
+    <span class="step-tag tag-manual">Manual</span>
+  </div>
+
+  <div class="step-card s5">
+    <div class="step-num">05</div>
+    <div class="step-icon">⭐</div>
+    <div class="step-title">DW Tables + Data Load (SP2)</div>
+    <div class="step-desc">Create star schema with proper data types, PK on all dims, FK on fact. Load via DW.load_data: NOCHECK FK → DELETE fact → DELETE+INSERT dims → INSERT fact → CHECK FK.</div>
+    <span class="step-tag tag-sp">Stored Procedure</span>
+  </div>
+
+  <div class="step-card s6">
+    <div class="step-num">06</div>
+    <div class="step-icon">✅</div>
+    <div class="step-title">Data Quality Validation</div>
+    <div class="step-desc">Compare Staging vs DW side by side using UNION ALL. Verify no data loss (row counts), NULLs handled, casing standardized, negative discounts fixed.</div>
+    <span class="step-tag tag-manual">Manual</span>
+  </div>
+
+  <div class="step-card s7">
+    <div class="step-num">07</div>
+    <div class="step-icon">⚡</div>
+    <div class="step-title">Performance Indexes</div>
+    <div class="step-desc">Create 5 non-clustered indexes on all FK columns (date_key, app_key, user_key, device_key, region_key) + event_type. Speed up all mart JOIN operations across 120,500 fact rows.</div>
+    <span class="step-tag tag-auto">Optimization</span>
+  </div>
+
+  <div class="step-card s8">
+    <div class="step-num">08</div>
+    <div class="step-icon">🏪</div>
+    <div class="step-title">Data Marts (6 Views)</div>
+    <div class="step-desc">Create 6 focused views — Marketing, Finance, Product, Regional, Device, Executive. Each joins fact + relevant dims with only business-relevant columns, including user_key for ARPU calculations.</div>
+    <span class="step-tag tag-manual">Manual</span>
+  </div>
+
+  <div class="step-card s9">
+    <div class="step-num">09</div>
+    <div class="step-icon">📊</div>
+    <div class="step-title">30+ Analytical Queries</div>
+    <div class="step-desc">KPI dashboards + 4-5 deep-dive queries per mart. Using LAG for MoM/QoQ/YoY trends, RANK/DENSE_RANK for top-N rankings, CTEs for multi-step comparisons, NULLIF for safe division.</div>
+    <span class="step-tag tag-manual">Business Intelligence</span>
+  </div>
+
+  <div class="step-card s10">
+    <div class="step-num">10</div>
+    <div class="step-icon">🚀</div>
+    <div class="step-title">GitHub Portfolio Packaging</div>
+    <div class="step-desc">Split monolithic SQL into numbered files by stage, write README with architecture flow + key decisions, push as a public portfolio project for interviews.</div>
+    <span class="step-tag tag-auto">Delivery</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- DATA QUALITY -->
+<div class="section-title">Data <span>Quality</span> Fixes</div>
+
+<div class="quality-grid">
+  <div class="quality-card">
+    <div class="quality-issue">Mixed casing</div>
+    <div class="quality-col">gender</div>
+    <div class="quality-arrow">male / MALE / M</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">Male / Female / Other / Unknown</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Mixed types</div>
+    <div class="quality-col">is_premium</div>
+    <div class="quality-arrow">yes / 1 / YES / no</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">BIT: 0 or 1 only</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Mixed casing</div>
+    <div class="quality-col">platform</div>
+    <div class="quality-arrow">android / ANDROID / ios</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">Android / iOS / Both</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Mixed separators</div>
+    <div class="quality-col">age_group</div>
+    <div class="quality-arrow">25_34 / 25 to 34</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">25-34 (dash format)</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">NULL / blank / N/A</div>
+    <div class="quality-col">city</div>
+    <div class="quality-arrow">NULL · '' · 'N/A'</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">'Unknown'</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Negative values</div>
+    <div class="quality-col">discount_pct</div>
+    <div class="quality-arrow">-5 (invalid!)</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">0 (no discount)</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">String boolean</div>
+    <div class="quality-col">is_weekend</div>
+    <div class="quality-arrow">'True' / 'False'</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">BIT: 1 or 0</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Hidden \r char</div>
+    <div class="quality-col">is_weekend</div>
+    <div class="quality-arrow">'True\r' (Windows CSV)</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">REPLACE(col, CHAR(13),'')</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">NULL values</div>
+    <div class="quality-col">content_rating</div>
+    <div class="quality-arrow">NULL</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">'Not Rated'</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Float-as-string</div>
+    <div class="quality-col">release_year</div>
+    <div class="quality-arrow">2020.0</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">CAST AS INT (NULL stays NULL)</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Version prefix mismatch</div>
+    <div class="quality-col">app_version</div>
+    <div class="quality-arrow">v2.0 / 2.0</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">TRIM + ISNULL('Unknown')</div>
+  </div>
+  <div class="quality-card">
+    <div class="quality-issue">Wrong date format</div>
+    <div class="quality-col">registration_date</div>
+    <div class="quality-arrow">DD-MM-YYYY string</div>
+    <div class="quality-arrow">↓</div>
+    <div class="quality-fix">CONVERT(DATE, col, 105)</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SQL TECHNIQUES -->
+<div class="section-title">Advanced <span>SQL</span> Used</div>
+
+<div class="sql-grid">
+  <div class="sql-card">
+    <div class="sql-fn">LAG()</div>
+    <div class="sql-use">MoM / QoQ / YoY revenue and engagement growth trends across Marketing, Finance, Product, Device & Executive marts</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">RANK() / DENSE_RANK()</div>
+    <div class="sql-use">Top-N apps per category, region, and device type — leaderboard-style ranking queries</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">ROW_NUMBER()</div>
+    <div class="sql-use">Latest-month snapshot per category/device in engagement growth tracking</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">SUM() OVER (PARTITION BY)</div>
+    <div class="sql-use">Revenue share % within a region — running window aggregation without collapsing rows</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">CTE (multi-level)</div>
+    <div class="sql-use">Chained trend logic — base metrics → LAG comparison → growth % in a single readable query</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">NULLIF()</div>
+    <div class="sql-use">Safe division — prevents divide-by-zero on every conversion, churn, and growth rate metric</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">COLLATE</div>
+    <div class="sql-use">Case-sensitive text comparison during profiling — SQL Server is case-insensitive by default</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">CASE (pivot-style)</div>
+    <div class="sql-use">Discount tier bucketing, screen size tiers, day-type classification, standardized text casing</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">COUNT(DISTINCT)</div>
+    <div class="sql-use">Unique user counts — the denominator for every ARPU calculation</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">CHAR(13)</div>
+    <div class="sql-use">Strips hidden carriage return characters left by Windows CSV exports in boolean text fields</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">NOCHECK CONSTRAINT</div>
+    <div class="sql-use">Temporarily disables FK enforcement so the fact table can be cleared and dimensions truncated safely</div>
+  </div>
+  <div class="sql-card">
+    <div class="sql-fn">TRY-CATCH</div>
+    <div class="sql-use">Wraps both load procedures with structured error logging — error message, number, and state</div>
+  </div>
+</div>
+
+<footer>
+  App Store Analytics · Kimball Data Warehouse · SQL Server · Database: Kimball
+</footer>
+
+</body>
+</html>
