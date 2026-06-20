@@ -1,0 +1,11 @@
+device_key,device_type,os_version,manufacturer,screen_size_inch
+1,Smartphone,iOS 16,Apple,6.1
+2,Tablet,iOS 15,Apple,10.9
+3,smartphone,Android 13,Samsung,6.4
+4,TABLET,Android 12,Google,11
+5,Smartwatch,Android 11,OnePlus,1.9
+6,,iOS 17,,
+7,Smartphone,,Apple,5.8
+8,tablet,Android 10,Xiaomi,6.67
+9,Smartwatch,iOS 14,Samsung,6.3
+10,PC,Windows,Microsoft,13.3
