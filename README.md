@@ -1,6 +1,6 @@
-markdown# 🏗️ App Store Analytics — Kimball Data Warehouse
+## 🏗️ App Store Analytics — Kimball Data Warehouse
 
-**Built with SQL Server | Kimball Dimensional Modelling | Star Schema**
+## Built with SQL Server | Kimball Dimensional Modelling | Star Schema
 
 ---
 
