@@ -23,7 +23,7 @@ f.user_key,f.event_type,f.session_minutes,f.install_source,f.revenue_usd
 from DW.fact_app_events as f
 join DW.dim_date d on f.date_key=d.date_key
 join DW.dim_app a on f.app_key=a.app_key
-join DW.dim_user u on f.user_key=u.user_key
+join DW.dim_user u on f.user_key=u.user_key;
 
 
 -- Creating Finance Mart
@@ -41,7 +41,7 @@ from DW.fact_app_events f
 join DW.dim_app a on f.app_key=a.app_key
 join DW.dim_store_region r on f.region_key=r.region_key
 join DW.dim_date d on f.date_key=d.date_key
-join DW.dim_user u on f.user_key=u.user_key
+join DW.dim_user u on f.user_key=u.user_key;
 
 
 -- Creating Product Mart
@@ -60,7 +60,7 @@ from DW.fact_app_events f
 join DW.dim_app a on f.app_key=a.app_key
 join DW.dim_device d on f.device_key=d.device_key
 join DW.dim_date dt on f.date_key=dt.date_key
-join DW.dim_user u on f.user_key=u.user_key
+join DW.dim_user u on f.user_key=u.user_key;
 
 
 -- Creating Regional Mart
@@ -78,7 +78,7 @@ from DW.fact_app_events f
 join DW.dim_app a on f.app_key=a.app_key
 join DW.dim_date d on f.date_key=d.date_key
 join DW.dim_user u on f.user_key=u.user_key 
-join Dw.dim_store_region s on f.region_key=s.region_key 
+join Dw.dim_store_region s on f.region_key=s.region_key ;
 
  
 -- Creating Device Mart
@@ -97,7 +97,7 @@ from DW.fact_app_events f
 join DW.dim_app a on f.app_key=a.app_key
 join DW.dim_date dt on f.date_key=dt.date_key
 join DW.dim_user u on f.user_key=u.user_key 
-join Dw.dim_device d on f.device_key =d.device_key
+join Dw.dim_device d on f.device_key =d.device_key;
 
 -- Creating Executive Mart
 IF OBJECT_ID('DW.Executive_Mart','V') IS NOT NULL
