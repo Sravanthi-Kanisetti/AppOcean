@@ -164,7 +164,6 @@ from DW.dim_device ;
  
 
 
-
 select distinct gender collate latin1_general_CS_AS as gender ,'Staging' as source
 from Staging.dim_user 
 union all
