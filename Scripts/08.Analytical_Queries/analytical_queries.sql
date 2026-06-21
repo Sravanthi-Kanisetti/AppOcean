@@ -33,7 +33,7 @@ round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(c
 -------------------------PRODUCT QUALITY--------------------------------------
 round(avg(revenue_usd),2) as avg_revenue_per_event_value 
 from
-	DW.Marketing_Mart mm
+	DW.Marketing_Mart;
 
 	
 	
@@ -52,11 +52,11 @@ select
 	round(sum(revenue_usd)/ nullif(count(distinct user_key), 0), 2) as ARPU,
 	round(avg(case when is_premium = 1 then 1.0 else 0.0 end)* 100, 2) as premium_user_pct
 from
-	DW.Marketing_Mart mm
+	DW.Marketing_Mart
 group by
 	install_source
 order by
-	purchase_conversion_rate_pct desc
+	purchase_conversion_rate_pct desc;
 	
 
 
@@ -67,7 +67,7 @@ order by
 -- Measures month-over-month revenue growth for each app category.
 with monthly_revenue as(
 select category , year, month, month_name, sum(revenue_usd) as revenue
-from DW.Marketing_Mart mm 
+from DW.Marketing_Mart
 group by category, year, month, month_name)
 ,
 	prev_revenue as (
@@ -92,7 +92,7 @@ where
 order by
 	category,
 	year,
-	month
+	month;
 
 
 
@@ -116,13 +116,13 @@ select
 	round(cast(sum(case when event_type='Purchase' then 1 else 0 end) as float)/nullif(count(distinct user_key),0),2) as avg_purchases_per_user,
 	round(sum(case when event_type = 'Purchase' then 1 else 0 end)* 100.0 / nullif(sum(case when event_type='Download' then 1 else 0 end), 0), 2) as purchase_rate_pct
 from
-	DW.Marketing_Mart mm
+	DW.Marketing_Mart
 group by
 	gender,
 	mm.age_group,
 	is_premium
 order by
-	total_revenue desc
+	total_revenue desc;
 	
 	
 
@@ -136,9 +136,9 @@ count(*) as total_events,
 round(sum(revenue_usd),2) as total_revenue,
 round(avg(revenue_usd),2) as avg_revenue,
 round(avg(session_minutes),2) as avg_session_minutes
-from DW.Marketing_Mart mm  
+from DW.Marketing_Mart 
 group by is_weekend,event_type 
-order by day_type,total_revenue desc
+order by day_type,total_revenue desc;
 
 
 
@@ -165,7 +165,7 @@ round(avg(case when is_premium=1 then 1.0 else 0.0 end)*100,2) as premium_user_p
 ------------------------CONTEXT KPIs-------------
 count(distinct app_name) as total_apps,
 count(distinct region_name) as total_regions 
-from DW.Finance_Mart fm 
+from DW.Finance_Mart  ;
 
 
 
@@ -179,9 +179,9 @@ round(sum(revenue_usd),2) as gross_revenue,
 round(sum(revenue_usd*(1-tax_rate_pct/100.0)),2) as net_revenue_after_tax,
 round(sum(revenue_usd)-sum(revenue_usd*(1-tax_rate_pct/100.0)),2) as total_tax_paid,
 count(case when event_type='Purchase' then 1 end) as total_purchases
-from DW.Finance_Mart fm 
+from DW.Finance_Mart  
 group by region_name,store_currency 
-order by net_revenue_after_tax desc  
+order by net_revenue_after_tax desc ; 
 
 
 
@@ -199,14 +199,14 @@ sum(case when event_type='Purchase' then 1 else 0 end) as total_purchases,
 round(sum(case when event_type='Purchase' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download' then 1 else 0 end),0),2) as purchase_conversion_pct,
 round(sum(revenue_usd),2) as total_revenue,
 round(avg(discount_pct),2) as avg_discount_pct
-from DW.Finance_Mart fm 
+from DW.Finance_Mart 
 group by 
 case when discount_pct=0 then 'No Discount'
 when discount_pct between 1 and 10 then 'Low(1-10%)'
 when discount_pct between 11 and 25 then 'Medium(11-25%)'
 when discount_pct>25 then 'High(>25%)' 
 end
-order by purchase_conversion_pct desc
+order by purchase_conversion_pct desc;
 
 
 	
@@ -216,9 +216,9 @@ select region_name,
 case when is_premium=1 then 'Premium' else 'Free' end as user_type ,
 round(sum(revenue_usd),2) as total_revenue,
 round(sum(revenue_usd)*100.0/nullif(sum(sum(revenue_usd)) over(partition by region_name),0),2) as revenue_share_pct_in_region
-from DW.Finance_Mart fm
+from DW.Finance_Mart
 group by region_name,is_premium 
-order by region_name,user_type 
+order by region_name,user_type ;
 
 
 
@@ -228,7 +228,7 @@ order by region_name,user_type
 -- Measures quarter-over-quarter revenue growth across platforms.
 with quarterly_data as(
 select platform ,year,quarter,sum(revenue_usd)as quarterly_revenue
-from Dw.Finance_Mart fm 
+from Dw.Finance_Mart 
 group by platform ,year,quarter)
 ,trend as(
 select *,
@@ -240,7 +240,7 @@ round(prev_quarterly_revenue,2) as prev_quarterly_revenue,
 round(quarterly_revenue-prev_quarterly_revenue,2) as qoq_revenue_change,
 round((quarterly_revenue-prev_quarterly_revenue)*100/nullif(prev_quarterly_revenue,0),2) as qoq_growth_pct
 from trend
-order by platform,year,quarter
+order by platform,year,quarter;
 
 	
 	
@@ -271,7 +271,7 @@ count(distinct os_version) as total_os_versions,
 ----------------------------USER SEGMENT MIX--------------------------------
 round(avg(case when is_premium=1 then 1.0 else 0.0 end )*100,2) as premium_user_pct,
 count(distinct age_group) as total_age_groups 
-from DW.Product_Mart pm 
+from DW.Product_Mart;
 
 
 
@@ -286,9 +286,9 @@ round(avg(session_minutes),2) as avg_session_minutes,
 round(avg(review_text_len),2) as avg_review_length,
 sum(case when event_type='Uninstall' then 1 else 0 end) as uninstalls,
 round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download'  then 1 else 0 end),0),2) as uninstall_rate_pct
-from DW.Product_Mart pm 
+from DW.Product_Mart  
 where app_version!='Unknown' 
-group by app_name,app_version 
+group by app_name,app_version ;
 
 
 
@@ -301,9 +301,9 @@ round(avg(rating),2) as avg_rating,
 round(avg(session_minutes),2) as avg_session_minutes,
 sum(case when event_type='Uninstall' then 1 else 0 end) as uninstalls,
 round(sum(case when event_type='Uninstall' then 1 else 0 end) *100.0/nullif(sum(case when event_type='Download'  then 1 else 0 end),0),2) as uninstall_rate_pct
-from DW.Product_Mart pm 
+from DW.Product_Mart 
 group by device_type,os_version
-order by uninstall_rate_pct desc	
+order by uninstall_rate_pct desc;	
 
 	
 
@@ -312,7 +312,7 @@ order by uninstall_rate_pct desc
 -- Tracks engagement growth trends across categories at the end of each year.
 with monthly_engagement as (
 select category,year,month,avg(session_minutes) as avg_session_minutes
-from DW.Product_Mart pm 
+from DW.Product_Mart 
 group by category,year,month
 ),
 trend as (
@@ -328,7 +328,7 @@ round(prev_month_engagement,2) as prev_month_engagement,
 round((avg_session_minutes-prev_month_engagement)*100.0/nullif(prev_month_engagement,0),2) as engagement_growth_pct
 from latest_month   
 where rn=1 and prev_month_engagement is not null
-order by engagement_growth_pct desc
+order by engagement_growth_pct desc;
 
 
 
@@ -338,7 +338,7 @@ with app_metrics as(
 select category,app_name,platform,
 round(avg(rating),2) as avg_rating,
 round(avg(session_minutes),2) as avg_session_minutes 
-from DW.Product_Mart pm  
+from DW.Product_Mart 
 where rating is not null 
 group by category,app_name,platform
 ),
@@ -348,7 +348,7 @@ from app_metrics
 )
 select * from ranked_apps 
 where app_rank<=3 
-order by category,app_rank 
+order by category,app_rank ;
 
 
 
@@ -378,7 +378,7 @@ round(max(discount_pct),2) as max_discount_pct,
 -------------------------GEOGRAPHY COVERAGE------------------------
 count(distinct region_name) as total_regions,
 count(distinct country) as total_countries 
-from DW.Regional_Mart rm 
+from DW.Regional_Mart;
 
 
 
@@ -391,9 +391,9 @@ round(avg(revenue_usd), 2) as avg_revenue,
 round(avg(cast(is_premium as float))*100,2) as premium_pct,
 sum(case when event_type='Purchase' then 1 else 0 end) as purchases,
 round(sum(case when event_type='Purchase' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download' then 1 else 0 end),0),2) as purchase_rate_pct
-from DW.Regional_Mart rm 
+from DW.Regional_Mart 
 group by region_name,country 
-order by total_revenue desc 
+order by total_revenue desc ;
 
 
   
@@ -409,7 +409,7 @@ group by region_name,country
 )
 select *,round(uninstalls*100.0/nullif(downloads,0),2) as churn_rate_pct
 from regional_events 
-order by churn_rate_pct desc
+order by churn_rate_pct desc;
 
 
 
@@ -426,12 +426,12 @@ round(sum(revenue_usd),2) as total_revenue,
 round(avg(revenue_usd),2) as  avg_revenue,
 sum(case when event_type='Purchase' then 1 else 0 end) as total_purchases,
 round(sum(case when event_type='Purchase' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download' then 1 else 0 end),0),2) as purchase_rate_pct
-from DW.Regional_Mart rm 
+from DW.Regional_Mart 
 group by region_name,
 case when discount_pct=0 then 'No Discount' 
 else 'Discounted'
 end
-order by region_name,discount_applied 
+order by region_name,discount_applied ;
 
 
 
@@ -440,7 +440,7 @@ order by region_name,discount_applied
 -- Ranks countries within each region based on total revenue.
 with country_revenue as(
 select region_name,country,sum(revenue_usd) as total_revenue 
-from DW.Regional_Mart rm 
+from DW.Regional_Mart 
 group by region_name,country
 )
 ,ranked_countries as (
@@ -450,7 +450,7 @@ from country_revenue
 select region_name,country,round(total_revenue,2) as total_revenue ,country_rank 
 from ranked_countries 
 where country_rank<=3 
-order by region_name,country_rank
+order by region_name,country_rank;
 
 
 
@@ -479,7 +479,7 @@ round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(c
 ----------------------PRODUCT MIX KPIs--------------------
 round(avg(case when is_premium=1 then 1.0 else 0.0  END )*100,2) as premium_user_pct,
 count(distinct age_group) as total_age_groups
-from DW.Device_Mart dm
+from DW.Device_Mart ;
 
 
 
@@ -499,7 +499,7 @@ round(
      nullif(sum(case when event_type = 'Download' then 1 else 0 end), 0)
      , 2) as uninstall_rate_pct
 from
-	DW.Device_Mart dm
+	DW.Device_Mart 
 group by
 	manufacturer,
 	device_type
@@ -530,7 +530,7 @@ when 'November' then 11
 when 'December' then 12
 end
 as month_num
-from DW.Device_Mart dm 
+from DW.Device_Mart 
 where device_type!='Unknown'
 group by device_type,year,month_name
 )
@@ -546,7 +546,7 @@ round(previous_avg_session_minutes,2) as previous_avg_session_minutes,
 round((avg_session_minutes-previous_avg_session_minutes)*100.0/nullif(previous_avg_session_minutes,0),2) as engagement_growth_pct 
 from trend 
 where rn=1 and previous_avg_session_minutes is not null 
-order by device_type, year
+order by device_type, year;
 
 
 
@@ -560,9 +560,9 @@ round(avg(session_minutes),2) as avg_session_minutes,
 sum(case when event_type='Uninstall' then 1 else 0 end) as uninstalls,
 sum(case when event_type='Download' then 1 else 0 end) as downloads,
 round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download' then 1 else 0 end),0),2) as uninstall_rate_pct 
-from DW.Device_Mart dm 
+from DW.Device_Mart 
 group by os_version 
-order by avg_rating asc 
+order by avg_rating asc ;
 
 
 
@@ -573,7 +573,7 @@ with app_engagement as(
 select device_type,app_name,
 round(avg(rating),2) as avg_rating,
 round(avg(session_minutes),2) as avg_session_minutes
-from DW.Device_Mart dm 
+from DW.Device_Mart 
 where device_type!='Unknown'
 group by device_type,app_name),
 ranked_apps as (
@@ -583,7 +583,7 @@ from app_engagement
 select device_type,app_name,avg_session_minutes,avg_rating,app_rank 
 from ranked_apps 
 where app_rank<=3 
-order by device_type,app_rank
+order by device_type,app_rank;
 
 
 
@@ -607,7 +607,7 @@ round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(c
 --------------------------ENGAGEMENT + QUALITY-------------------------
 round(avg(rating),2) as avg_app_rating,
 round(avg(session_minutes),2)  as avg_session_minutes
-from DW.Executive_Mart em 
+from DW.Executive_Mart ;
 
 
 
@@ -640,7 +640,7 @@ sum(case when event_type='Download' then 1 else 0 end) as downloads,
 sum(case when event_type='Uninstall' then 1 else 0 end) as uninstalls,
 avg(session_minutes) as avg_session_minutes,
 avg(rating) as avg_rating
-from DW.Executive_Mart em 
+from DW.Executive_Mart  
 group by year,quarter,month_name
 ),
 trend as(
@@ -655,7 +655,7 @@ round((avg_session_minutes-prev_session_minutes)*100.0/nullif(prev_session_minut
 round(purchases*100.0/nullif(downloads,0),2) as conversion_rate_pct,
 round(uninstalls*100.0/nullif(downloads,0),2) as churn_rate_pct 
 from trend 
-order by year,quarter,month_num
+order by year,quarter,month_num;
 
 
 
@@ -668,7 +668,7 @@ round(sum(revenue_usd),2) as revenue,
 round(avg(session_minutes),2) as avg_session_minutes,
 round(avg(rating),2) as avg_rating,
 sum(case when event_type='Purchase' then 1 else 0 end) as purchases
-from DW.Executive_Mart em 
+from DW.Executive_Mart 
 group by year
 )
 select year,total_events,avg_rating,
@@ -680,7 +680,7 @@ avg_session_minutes as current_avg_session_minutes,
 lag(avg_session_minutes) over(order by year) as prev_avg_session_minutes,
 round((avg_session_minutes-lag(avg_session_minutes) over(order by year))*100.0/nullif(lag(avg_session_minutes) over(order by year),0),2) as engagement_growth_pct
 from yearly 
-order by year
+order by year;
 
 
 
@@ -691,7 +691,7 @@ select region_name,app_name,category,platform,
 round(sum(revenue_usd),2) as total_revenue,
 round(avg(session_minutes),2) as avg_session_minutes,
 round(avg(rating),2) as avg_rating
-from DW.Executive_Mart em 
+from DW.Executive_Mart 
 where region_name!='Unknown' and app_name!='Unknown'
 and category!='Unknown' and platform!='Unknown'
 group by region_name,app_name,category,platform
@@ -705,7 +705,7 @@ total_revenue,
 avg_rating,avg_session_minutes,revenue_rank 
 from ranked 
 where revenue_rank<=5 
-ORDER BY region_name, revenue_rank
+ORDER BY region_name, revenue_rank;
 
 
 
@@ -727,7 +727,7 @@ round(avg(session_minutes),2) as avg_session_minutes,
 round(avg(rating),2) as avg_rating,
 sum(case when event_type='Uninstall' then 1 else 0 end) as uninstalls,
 round(sum(case when event_type='Uninstall' then 1 else 0 end)*100.0/nullif(sum(case when event_type='Download' then 1 else 0 end),0),2) as churn_rate_pct
-from DW.Executive_Mart em
+from DW.Executive_Mart 
 where age_group!='Unknown' and gender!='Unknown'
 group by is_premium,age_group,region_name,gender 
 ),
@@ -738,24 +738,7 @@ from segment_metrics
 select *
 from ranked
 where segment_rank<=10 
-order by segment_rank
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+order by segment_rank;
 
 
 
