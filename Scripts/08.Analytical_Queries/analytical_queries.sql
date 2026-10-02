@@ -119,7 +119,7 @@ from
 	DW.Marketing_Mart
 group by
 	gender,
-	mm.age_group,
+	age_group,
 	is_premium
 order by
 	total_revenue desc;
