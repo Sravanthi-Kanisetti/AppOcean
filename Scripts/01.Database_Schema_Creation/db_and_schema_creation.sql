@@ -1,3 +1,6 @@
+use master; 
+go 
+
 --Database Creation
 if DB_ID('Kimball') is not null
 begin
