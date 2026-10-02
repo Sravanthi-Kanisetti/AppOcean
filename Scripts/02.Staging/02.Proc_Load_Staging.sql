@@ -18,7 +18,7 @@ begin
 		from 'C:\Users\kanis\App Store Analytics Project\dim_app.csv'
 		with(
 			firstrow=2,
-			fieldterminator=',',
+			fieldterminator=',', 
 			rowterminator='0x0A',
 			tablock
 		);
